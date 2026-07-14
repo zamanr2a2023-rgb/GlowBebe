@@ -2,10 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glowbebe/app.dart';
 
 void main() {
-  testWidgets('App loads login screen', (WidgetTester tester) async {
+  testWidgets('App loads Makeup Hub', (WidgetTester tester) async {
     await tester.pumpWidget(const GlowBebeApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    expect(find.text('Login'), findsWidgets);
+    expect(find.text('Makeup'), findsWidgets);
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glowbebe/core/theme/app_theme.dart';
 import 'package:glowbebe/routes/app_routes.dart';
+import 'package:glowbebe/routes/route_names.dart';
 
 class GlowBebeApp extends StatelessWidget {
   const GlowBebeApp({super.key});
@@ -11,7 +12,7 @@ class GlowBebeApp extends StatelessWidget {
       title: 'GlowBebe',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.login,
+      initialRoute: RouteNames.makeupHub,
       onGenerateRoute: AppRoutes.generateRoute,
     );
   }
