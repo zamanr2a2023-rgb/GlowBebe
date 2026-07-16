@@ -7,13 +7,14 @@ class MakeupController extends ChangeNotifier {
     for (final c in MakeupCategory.values) c: null,
   };
   final Map<MakeupCategory, double> _intensities = {
-    for (final c in MakeupCategory.values) c: 0.65,
+    for (final c in MakeupCategory.values) c: 0.10,
   };
 
   FaceLandmarks? _landmarks;
   bool _hideMakeup = false;
   bool _panelVisible = true;
   bool _intensityVisible = false;
+  bool _debugLandmarks = false;
   String? _statusLabel;
   bool _faceDetected = false;
 
@@ -23,6 +24,7 @@ class MakeupController extends ChangeNotifier {
   bool get hideMakeup => _hideMakeup;
   bool get panelVisible => _panelVisible;
   bool get intensityVisible => _intensityVisible;
+  bool get debugLandmarks => _debugLandmarks;
   String? get statusLabel => _statusLabel;
   bool get faceDetected => _faceDetected;
 
@@ -31,9 +33,9 @@ class MakeupController extends ChangeNotifier {
   MakeupShade? get selectedShade => _selectedShades[_category];
 
   double intensityFor(MakeupCategory category) =>
-      ((_intensities[category] ?? 0.65) * _lookOpacity).clamp(0.0, 1.0);
+      ((_intensities[category] ?? 0.10) * _lookOpacity).clamp(0.0, 1.0);
 
-  double get selectedIntensity => _intensities[_category] ?? 0.65;
+  double get selectedIntensity => _intensities[_category] ?? 0.10;
 
   double get lookOpacity => _lookOpacity;
   double _lookOpacity = 1.0;
@@ -86,6 +88,11 @@ class MakeupController extends ChangeNotifier {
 
   void selectShade(MakeupShade? shade) {
     _selectedShades[_category] = shade;
+    // First apply starts light (10%); user raises it with the intensity slider.
+    if (shade != null) {
+      _intensities[_category] = 0.10;
+      _intensityVisible = true;
+    }
     _statusLabel = shade == null
         ? '${_category.shortLabel} CLEARED'
         : '${shade.name} ${_category.shortLabel} APPLIED';
@@ -103,6 +110,17 @@ class MakeupController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDebugLandmarks(bool value) {
+    if (_debugLandmarks == value) return;
+    _debugLandmarks = value;
+    notifyListeners();
+  }
+
+  void toggleDebugLandmarks() {
+    _debugLandmarks = !_debugLandmarks;
+    notifyListeners();
+  }
+
   /// Applies a full look for Customize → Choose Style.
   void applyStylePreset(int index) {
     for (final c in MakeupCategory.values) {
@@ -110,7 +128,7 @@ class MakeupController extends ChangeNotifier {
     }
 
     var intensity = 0.65;
-    switch (index.clamp(0, 3)) {
+    switch (index.clamp(0, 4)) {
       case 0: // Natural
         _selectedShades[MakeupCategory.lip] = MakeupCatalog.lipShades[1];
         _selectedShades[MakeupCategory.blush] = MakeupCatalog.blushShades[0];
@@ -135,13 +153,21 @@ class MakeupController extends ChangeNotifier {
         intensity = 0.55;
         break;
       case 3: // Party
-      default:
         _selectedShades[MakeupCategory.lip] = MakeupCatalog.lipShades[3];
         _selectedShades[MakeupCategory.blush] = MakeupCatalog.blushShades[2];
         _selectedShades[MakeupCategory.eye] = MakeupCatalog.eyeShades[2];
         _selectedShades[MakeupCategory.foundation] =
             MakeupCatalog.foundationShades[4];
         intensity = 0.85;
+        break;
+      case 4: // Date Night
+      default:
+        _selectedShades[MakeupCategory.lip] = MakeupCatalog.lipShades[0];
+        _selectedShades[MakeupCategory.blush] = MakeupCatalog.blushShades[1];
+        _selectedShades[MakeupCategory.eye] = MakeupCatalog.eyeShades[2];
+        _selectedShades[MakeupCategory.foundation] =
+            MakeupCatalog.foundationShades[1];
+        intensity = 0.72;
         break;
     }
     for (final c in MakeupCategory.values) {

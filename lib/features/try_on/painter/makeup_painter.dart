@@ -16,7 +16,7 @@ class MakeupPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (controller.hideMakeup) return;
+    if (controller.hideMakeup && !controller.debugLandmarks) return;
     final raw = landmarks;
     if (raw == null || !raw.hasFace) return;
 
@@ -24,11 +24,17 @@ class MakeupPainter extends CustomPainter {
         ? raw
         : raw.mappedTo(widgetSize: size, mirror: false);
 
-    // Draw order: foundation → blush → eyes → lips
-    _paintFoundation(canvas, lm);
-    _paintBlush(canvas, lm);
-    _paintEyes(canvas, lm);
-    _paintLips(canvas, lm);
+    if (!controller.hideMakeup) {
+      // Foundation → blush → eyes → lips (no separate beauty base mask).
+      _paintFoundation(canvas, lm);
+      _paintBlush(canvas, lm);
+      _paintEyes(canvas, lm);
+      _paintLips(canvas, lm);
+    }
+
+    if (controller.debugLandmarks) {
+      _paintDebugPlacement(canvas, lm);
+    }
   }
 
   void _paintFoundation(Canvas canvas, FaceLandmarks lm) {
@@ -36,23 +42,52 @@ class MakeupPainter extends CustomPainter {
     if (shade == null) return;
 
     final intensity = controller.intensityFor(MakeupCategory.foundation);
-    final facePath = _faceMask(lm);
+    if (intensity <= 0.01) return;
+
+    final facePath = _skinMask(lm, punchLips: true, punchEyes: true);
     if (facePath == null) return;
 
-    // Visible even tint — softLight was basically invisible on camera photos.
-    final base = Paint()
-      ..color = shade.color.withValues(alpha: 0.32 * intensity)
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10)
-      ..blendMode = BlendMode.srcOver;
-    canvas.drawPath(facePath, base);
+    final bounds = facePath.getBounds();
+    final layerBounds = bounds.inflate(6);
+    canvas.saveLayer(layerBounds, Paint());
+    canvas.clipPath(facePath);
 
-    final veil = Paint()
-      ..color = shade.color.withValues(alpha: 0.18 * intensity)
+    // Soft top fade: hides the hard kopal cut without spilling into hair.
+    final topFade = bounds.top;
+    final fadeEnd = bounds.top + bounds.height * 0.18;
+    final paint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(bounds.center.dx, topFade),
+        Offset(bounds.center.dx, fadeEnd),
+        [
+          shade.color.withValues(alpha: 0.0),
+          shade.color.withValues(alpha: 0.22 * intensity),
+          shade.color.withValues(alpha: 0.34 * intensity),
+        ],
+        const [0.0, 0.35, 1.0],
+      )
       ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16)
-      ..blendMode = BlendMode.softLight;
-    canvas.drawPath(facePath, veil);
+      ..blendMode = BlendMode.srcOver;
+    canvas.drawPath(facePath, paint);
+
+    // Mid/lower face — even coverage.
+    canvas.drawPath(
+      facePath,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(bounds.center.dx, fadeEnd),
+          Offset(bounds.center.dx, bounds.bottom),
+          [
+            shade.color.withValues(alpha: 0.28 * intensity),
+            shade.color.withValues(alpha: 0.32 * intensity),
+            shade.color.withValues(alpha: 0.26 * intensity),
+          ],
+          const [0.0, 0.55, 1.0],
+        )
+        ..blendMode = BlendMode.softLight,
+    );
+
+    canvas.restore();
   }
 
   void _paintBlush(Canvas canvas, FaceLandmarks lm) {
@@ -65,36 +100,48 @@ class MakeupPainter extends CustomPainter {
 
     final faceBounds = _bounds(lm.faceOval) ?? _estimateFaceBounds(lm);
     final radius = faceBounds == null
-        ? 52.0
-        : (faceBounds.width * 0.18).clamp(40.0, 78.0);
+        ? 48.0
+        : (faceBounds.width * 0.16).clamp(36.0, 68.0);
 
-    final clip = _faceMask(lm);
+    final clip = _skinMask(lm, punchLips: true, punchEyes: true);
+    final map = lm.placement;
 
     for (final center in cheeks) {
+      var paintAt = center;
+      if (map.cheekboneLine.isNotEmpty) {
+        Offset? nearest;
+        var best = double.infinity;
+        for (final p in map.cheekboneLine) {
+          final d = (p - center).distanceSquared;
+          if (d < best) {
+            best = d;
+            nearest = p;
+          }
+        }
+        if (nearest != null) {
+          paintAt = Offset(
+            (center.dx * 0.55) + (nearest.dx * 0.45),
+            (center.dy * 0.6) + (nearest.dy * 0.4),
+          );
+        }
+      }
+
       canvas.save();
       if (clip != null) canvas.clipPath(clip);
 
       final glow = Paint()
         ..shader = ui.Gradient.radial(
-          center,
+          paintAt,
           radius,
           [
-            shade.color.withValues(alpha: 0.55 * intensity),
-            shade.color.withValues(alpha: 0.28 * intensity),
+            shade.color.withValues(alpha: 0.42 * intensity),
+            shade.color.withValues(alpha: 0.18 * intensity),
             shade.color.withValues(alpha: 0.0),
           ],
           const [0.0, 0.45, 1.0],
         )
-        ..blendMode = BlendMode.srcOver
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawCircle(center, radius, glow);
-
-      // Warm core so blush reads on darker skin / photos.
-      final core = Paint()
-        ..color = shade.color.withValues(alpha: 0.28 * intensity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-        ..blendMode = BlendMode.srcOver;
-      canvas.drawCircle(center, radius * 0.45, core);
+        ..blendMode = BlendMode.softLight;
+      canvas.drawCircle(paintAt, radius, glow);
       canvas.restore();
     }
   }
@@ -104,8 +151,14 @@ class MakeupPainter extends CustomPainter {
     if (shade == null) return;
 
     final intensity = controller.intensityFor(MakeupCategory.eye);
-    _paintEyeShadow(canvas, lm.leftEye, lm.leftEyebrow, shade, intensity);
-    _paintEyeShadow(canvas, lm.rightEye, lm.rightEyebrow, shade, intensity);
+    final leftBrow = lm.leftEyebrowBottom.isNotEmpty
+        ? lm.leftEyebrowBottom
+        : lm.leftEyebrow;
+    final rightBrow = lm.rightEyebrowBottom.isNotEmpty
+        ? lm.rightEyebrowBottom
+        : lm.rightEyebrow;
+    _paintEyeShadow(canvas, lm.leftEye, leftBrow, shade, intensity);
+    _paintEyeShadow(canvas, lm.rightEye, rightBrow, shade, intensity);
   }
 
   void _paintEyeShadow(
@@ -115,67 +168,125 @@ class MakeupPainter extends CustomPainter {
     MakeupShade shade,
     double intensity,
   ) {
-    if (eye.length < 3) return;
+    final lid = _eyelidPath(eye, brow);
+    if (lid == null) return;
 
     final eyeBounds = _bounds(eye);
-    if (eyeBounds == null || eyeBounds.width < 2) return;
+    if (eyeBounds == null) return;
 
-    final lidHeight = math.max(eyeBounds.height * 1.35, 18.0);
-    var top = eyeBounds.top - lidHeight * 0.85;
-    if (brow.length >= 2) {
-      final browBottom = brow.map((p) => p.dy).reduce(math.max);
-      // Keep eyeshadow under the brow.
-      top = math.max(top, browBottom + 2);
+    canvas.save();
+    canvas.clipPath(lid);
+
+    final top = lid.getBounds().top;
+    canvas.drawPath(
+      lid,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(eyeBounds.center.dx, top),
+          Offset(eyeBounds.center.dx, eyeBounds.top + eyeBounds.height * 0.15),
+          [
+            shade.color.withValues(alpha: 0.58 * intensity),
+            shade.color.withValues(alpha: 0.28 * intensity),
+            shade.color.withValues(alpha: 0.0),
+          ],
+          const [0.0, 0.55, 1.0],
+        )
+        ..blendMode = BlendMode.srcOver
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+    );
+
+    // Crease definition along the top of the lid band.
+    final creasePts = _eyelidCreaseLine(eye, brow);
+    if (creasePts.length >= 2) {
+      final crease = Path()..moveTo(creasePts.first.dx, creasePts.first.dy);
+      for (var i = 1; i < creasePts.length; i++) {
+        crease.lineTo(creasePts[i].dx, creasePts[i].dy);
+      }
+      canvas.drawPath(
+        crease,
+        Paint()
+          ..color = shade.color.withValues(alpha: 0.4 * intensity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+          ..blendMode = BlendMode.srcOver,
+      );
     }
 
-    final path = Path()
-      ..moveTo(eyeBounds.left - 4, eyeBounds.center.dy)
-      ..quadraticBezierTo(
-        eyeBounds.center.dx,
-        top,
-        eyeBounds.right + 4,
-        eyeBounds.center.dy,
-      )
-      ..quadraticBezierTo(
-        eyeBounds.center.dx,
-        eyeBounds.top + eyeBounds.height * 0.15,
-        eyeBounds.left - 4,
-        eyeBounds.center.dy,
-      )
-      ..close();
-
-    final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(eyeBounds.center.dx, top),
-        Offset(eyeBounds.center.dx, eyeBounds.bottom),
-        [
-          shade.color.withValues(alpha: 0.62 * intensity),
-          shade.color.withValues(alpha: 0.22 * intensity),
-          shade.color.withValues(alpha: 0.0),
-        ],
-        const [0.0, 0.55, 1.0],
-      )
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
-      ..blendMode = BlendMode.srcOver;
-    canvas.drawPath(path, paint);
-
-    // Crease line for definition.
-    final crease = Paint()
-      ..color = shade.color.withValues(alpha: 0.35 * intensity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
-      ..blendMode = BlendMode.srcOver;
-    final creasePath = Path()
-      ..moveTo(eyeBounds.left, eyeBounds.top + 2)
-      ..quadraticBezierTo(
-        eyeBounds.center.dx,
-        top + lidHeight * 0.35,
-        eyeBounds.right,
-        eyeBounds.top + 2,
+    // Upper lash line — mesh contour, not eyeball fill.
+    final midY = eye.map((p) => p.dy).reduce((a, b) => a + b) / eye.length;
+    final lashPts = eye.where((p) => p.dy <= midY + 1).toList()
+      ..sort((a, b) => a.dx.compareTo(b.dx));
+    if (lashPts.length >= 2) {
+      final lash = Path()..moveTo(lashPts.first.dx, lashPts.first.dy);
+      for (var i = 1; i < lashPts.length; i++) {
+        lash.lineTo(lashPts[i].dx, lashPts[i].dy);
+      }
+      canvas.drawPath(
+        lash,
+        Paint()
+          ..color = shade.color.withValues(alpha: 0.45 * intensity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.8
+          ..strokeCap = StrokeCap.round
+          ..blendMode = BlendMode.srcOver,
       );
-    canvas.drawPath(creasePath, crease);
+    }
+
+    canvas.restore();
+  }
+
+  /// Eyelid band: upper lash → crease (below brow). Never covers the iris.
+  Path? _eyelidPath(List<Offset> eye, List<Offset> brow) {
+    if (eye.length < 4) return null;
+    final eyeBounds = _bounds(eye);
+    if (eyeBounds == null || eyeBounds.width < 2) return null;
+
+    final midY = eye.map((p) => p.dy).reduce((a, b) => a + b) / eye.length;
+    final upper = eye.where((p) => p.dy <= midY + 0.8).toList()
+      ..sort((a, b) => a.dx.compareTo(b.dx));
+    if (upper.length < 2) return null;
+
+    final crease = _eyelidCreaseLine(eye, brow);
+    if (crease.length < 2) return null;
+
+    final path = Path()..moveTo(upper.first.dx, upper.first.dy);
+    for (var i = 1; i < upper.length; i++) {
+      path.lineTo(upper[i].dx, upper[i].dy);
+    }
+    for (var i = crease.length - 1; i >= 0; i--) {
+      path.lineTo(crease[i].dx, crease[i].dy);
+    }
+    path.close();
+    return path;
+  }
+
+  List<Offset> _eyelidCreaseLine(List<Offset> eye, List<Offset> brow) {
+    if (eye.length < 4) return const [];
+    final midY = eye.map((p) => p.dy).reduce((a, b) => a + b) / eye.length;
+    final upper = eye.where((p) => p.dy <= midY + 0.8).toList()
+      ..sort((a, b) => a.dx.compareTo(b.dx));
+    if (upper.isEmpty) return const [];
+
+    final eyeBounds = _bounds(eye)!;
+    double browBottom;
+    if (brow.length >= 2) {
+      browBottom = brow.map((p) => p.dy).reduce(math.max);
+    } else {
+      browBottom = eyeBounds.top - eyeBounds.height * 0.85;
+    }
+
+    // Keep crease between brow and upper lash (lid only).
+    return [
+      for (final p in upper)
+        () {
+          final y = browBottom * 0.35 + p.dy * 0.65;
+          final lo = math.min(browBottom + 1.0, p.dy - 1.0);
+          final hi = math.max(browBottom + 1.0, p.dy - 1.0);
+          return Offset(p.dx, y.clamp(lo, hi));
+        }(),
+    ];
   }
 
   void _paintLips(Canvas canvas, FaceLandmarks lm) {
@@ -183,70 +294,220 @@ class MakeupPainter extends CustomPainter {
     if (shade == null) return;
 
     final intensity = controller.intensityFor(MakeupCategory.lip);
-    final upper =
-        _smoothLipBand(lm.upperLipTop, lm.upperLipBottom, inflate: 1.4);
-    final lower =
-        _smoothLipBand(lm.lowerLipTop, lm.lowerLipBottom, inflate: 1.6);
-    final full = _lipCombinedPath(lm, inflate: 1.2);
-    final bounds = full?.getBounds();
 
-    if (full != null) {
-      canvas.drawPath(
-        full,
-        Paint()
-          ..color = shade.color.withValues(alpha: 0.22 * intensity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
-          ..blendMode = BlendMode.srcOver,
-      );
-    }
+    // Mesh-precise lip fill — stay inside outer border (no inflate overflow).
+    final upper = _smoothLipBand(lm.upperLipTop, lm.upperLipBottom, inflate: 0);
+    final lower = _smoothLipBand(lm.lowerLipTop, lm.lowerLipBottom, inflate: 0);
+    final full = _lipCombinedPath(lm, inflate: 0);
+    if (full == null && upper == null && lower == null) return;
+
+    final clipPath = full ??
+        (upper != null && lower != null
+            ? Path.combine(PathOperation.union, upper, lower)
+            : upper ?? lower!);
+    final bounds = clipPath.getBounds();
+
+    canvas.save();
+    canvas.clipPath(clipPath);
+
+    // Soft multiply base so lipstick blends into natural lip texture.
+    canvas.drawPath(
+      clipPath,
+      Paint()
+        ..color = shade.color.withValues(alpha: 0.42 * intensity)
+        ..blendMode = BlendMode.multiply
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+    );
 
     final body = Paint()
       ..style = PaintingStyle.fill
-      ..blendMode = BlendMode.srcOver;
-
-    if (bounds != null) {
-      body.shader = ui.Gradient.linear(
+      ..blendMode = BlendMode.srcOver
+      ..shader = ui.Gradient.linear(
         Offset(bounds.center.dx, bounds.top),
         Offset(bounds.center.dx, bounds.bottom),
         [
-          Color.lerp(Colors.white, shade.color, 0.72)!
-              .withValues(alpha: 0.78 * intensity),
-          shade.color.withValues(alpha: 0.84 * intensity),
-          Color.lerp(shade.color, const Color(0xFF4A2020), 0.25)!
-              .withValues(alpha: 0.76 * intensity),
+          Color.lerp(Colors.white, shade.color, 0.55)!
+              .withValues(alpha: 0.55 * intensity),
+          shade.color.withValues(alpha: 0.62 * intensity),
+          Color.lerp(shade.color, const Color(0xFF4A2020), 0.18)!
+              .withValues(alpha: 0.58 * intensity),
         ],
-        const [0.0, 0.45, 1.0],
+        const [0.0, 0.48, 1.0],
       );
-    } else {
-      body.color = shade.color.withValues(alpha: 0.78 * intensity);
-    }
 
     if (upper != null) canvas.drawPath(upper, body);
     if (lower != null) canvas.drawPath(lower, body);
 
+    // SoftLight glaze for natural sheen.
+    canvas.drawPath(
+      clipPath,
+      Paint()
+        ..color = shade.color.withValues(alpha: 0.28 * intensity)
+        ..blendMode = BlendMode.softLight
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+
+    // Mouth closure line for natural lip split.
+    final closure = lm.placement.mouthClosureLine;
+    if (closure.length >= 2) {
+      final mid = Path()..moveTo(closure.first.dx, closure.first.dy);
+      for (var i = 1; i < closure.length; i++) {
+        mid.lineTo(closure[i].dx, closure[i].dy);
+      }
+      canvas.drawPath(
+        mid,
+        Paint()
+          ..color = Color.lerp(shade.color, const Color(0xFF3A1818), 0.45)!
+              .withValues(alpha: 0.32 * intensity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.8)
+          ..blendMode = BlendMode.srcOver,
+      );
+    }
+
     if (lm.upperLipTop.length >= 3) {
       final pts = _sampleSmooth(lm.upperLipTop, steps: 18);
       if (pts.isNotEmpty) {
-        final highlight = Path()..moveTo(pts.first.dx, pts.first.dy + 1.5);
+        final highlight = Path()..moveTo(pts.first.dx, pts.first.dy + 1.0);
         for (var i = 1; i < pts.length; i++) {
-          highlight.lineTo(pts[i].dx, pts[i].dy + 1.5);
+          highlight.lineTo(pts[i].dx, pts[i].dy + 1.0);
         }
         canvas.drawPath(
           highlight,
           Paint()
-            ..color = Colors.white.withValues(alpha: 0.28 * intensity)
+            ..color = Colors.white.withValues(alpha: 0.22 * intensity)
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.2
+            ..strokeWidth = 1.8
             ..strokeCap = StrokeCap.round
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
-            ..blendMode = BlendMode.srcOver,
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2)
+            ..blendMode = BlendMode.softLight,
         );
       }
     }
+
+    canvas.restore();
   }
 
-  /// Face oval with eye / lip holes when available.
-  Path? _faceMask(FaceLandmarks lm) {
+  void _paintDebugPlacement(Canvas canvas, FaceLandmarks lm) {
+    final map = lm.placement;
+    void stroke(List<Offset> pts, Color color, {double width = 1.5}) {
+      if (pts.length < 2) return;
+      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (var i = 1; i < pts.length; i++) {
+        path.lineTo(pts[i].dx, pts[i].dy);
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    stroke(map.lipOuterBorder, const Color(0xFFFF4D6D), width: 2);
+    stroke(map.mouthClosureLine, const Color(0xFFFF8FAB));
+    stroke(map.cheekboneLine, const Color(0xFFFFB703));
+    stroke(map.contourHollowLine, const Color(0xFFFB8500));
+    stroke(map.jawlineOuter, const Color(0xFF8ECAE6));
+    stroke(map.underEyeLine, const Color(0xFF90E0EF));
+    stroke(map.upperLashLine, const Color(0xFF48CAE4));
+    stroke(map.lowerLashLine, const Color(0xFF00B4D8));
+    stroke(map.eyeCreaseLine, const Color(0xFF0077B6));
+    stroke(map.browArchLine, const Color(0xFF9B5DE5));
+    stroke(map.foreheadHairline, const Color(0xFF80ED99));
+    stroke(map.noseBridgeLine, const Color(0xFFF72585));
+    stroke(map.noseFlankLines, const Color(0xFFB5179E));
+  }
+
+  /// Tight skin silhouette for foundation/beauty — face only, no background halo.
+  ///
+  /// Mild forehead lift (capped) so coverage reaches under the hairline without
+  /// spilling onto hair, ears, or walls. Eyes and lips are punched out.
+  Path? _skinMask(
+    FaceLandmarks lm, {
+    bool punchLips = true,
+    bool punchEyes = true,
+  }) {
+    final skin = _tightFaceSilhouette(lm);
+    if (skin == null) {
+      return _faceMask(lm, punchLips: punchLips, punchEyes: punchEyes);
+    }
+
+    Path mask = skin;
+    if (punchEyes) {
+      for (final eye in [lm.leftEye, lm.rightEye]) {
+        // Slight inflate so foundation never paints the eyeball.
+        final eyePath = _closedPath(eye, inflate: 1.5);
+        if (eyePath != null) {
+          mask = Path.combine(PathOperation.difference, mask, eyePath);
+        }
+      }
+    }
+    if (punchLips) {
+      final lips = _lipCombinedPath(lm, inflate: 1);
+      if (lips != null) {
+        mask = Path.combine(PathOperation.difference, mask, lips);
+      }
+    }
+    return mask;
+  }
+
+  Path? _tightFaceSilhouette(FaceLandmarks lm) {
+    final oval = lm.faceOval;
+    if (oval.length < 6) {
+      final bounds = _estimateFaceBounds(lm);
+      if (bounds == null) return null;
+      return Path()
+        ..addOval(
+          Rect.fromCenter(
+            center: Offset(
+              bounds.center.dx,
+              bounds.center.dy - bounds.height * 0.02,
+            ),
+            width: bounds.width * 1.01,
+            height: bounds.height * 1.06,
+          ),
+        );
+    }
+
+    final bounds = _bounds(oval);
+    if (bounds == null || bounds.height < 8) return null;
+
+    final h = bounds.height;
+    final cx = bounds.center.dx;
+    // Raise only the crown toward kopal (~12%), pull temples slightly inward
+    // so sides don't sit on hair.
+    const liftFactor = 0.12;
+    final expanded = <Offset>[];
+    for (final p in oval) {
+      final t = ((bounds.bottom - p.dy) / h).clamp(0.0, 1.0);
+      final w = t < 0.50 ? 0.0 : math.pow((t - 0.50) / 0.50, 1.15).toDouble();
+      final up = h * liftFactor * w;
+      final inward = (p.dx - cx) * (-0.03 * w);
+      expanded.add(Offset(p.dx + inward, p.dy - up));
+    }
+
+    final smooth = _sampleSmooth(expanded, steps: 48);
+    if (smooth.length < 3) return null;
+
+    final path = Path()..moveTo(smooth.first.dx, smooth.first.dy);
+    for (var i = 1; i < smooth.length; i++) {
+      path.lineTo(smooth[i].dx, smooth[i].dy);
+    }
+    path.close();
+    return path;
+  }
+
+  /// Face oval with optional eye / lip holes.
+  Path? _faceMask(
+    FaceLandmarks lm, {
+    bool punchLips = true,
+    bool punchEyes = true,
+  }) {
     Path? facePath = _closedPath(lm.faceOval);
     facePath ??= () {
       final bounds = _estimateFaceBounds(lm);
@@ -256,15 +517,19 @@ class MakeupPainter extends CustomPainter {
     if (facePath == null) return null;
 
     Path mask = facePath;
-    for (final eye in [lm.leftEye, lm.rightEye]) {
-      final eyePath = _closedPath(eye, inflate: 6);
-      if (eyePath != null) {
-        mask = Path.combine(PathOperation.difference, mask, eyePath);
+    if (punchEyes) {
+      for (final eye in [lm.leftEye, lm.rightEye]) {
+        final eyePath = _closedPath(eye, inflate: 1.5);
+        if (eyePath != null) {
+          mask = Path.combine(PathOperation.difference, mask, eyePath);
+        }
       }
     }
-    final lips = _lipCombinedPath(lm);
-    if (lips != null) {
-      mask = Path.combine(PathOperation.difference, mask, lips);
+    if (punchLips) {
+      final lips = _lipCombinedPath(lm);
+      if (lips != null) {
+        mask = Path.combine(PathOperation.difference, mask, lips);
+      }
     }
     return mask;
   }
@@ -469,6 +734,7 @@ class MakeupPainter extends CustomPainter {
     return oldDelegate.landmarks != landmarks ||
         oldDelegate.controller != controller ||
         oldDelegate.controller.hideMakeup != controller.hideMakeup ||
+        oldDelegate.controller.debugLandmarks != controller.debugLandmarks ||
         oldDelegate.controller.shadeFor(MakeupCategory.lip) !=
             controller.shadeFor(MakeupCategory.lip) ||
         oldDelegate.controller.shadeFor(MakeupCategory.blush) !=

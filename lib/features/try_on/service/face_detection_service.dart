@@ -7,18 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:glowbebe/features/try_on/model/makeup_product.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
-class StillFaceResult {
-  const StillFaceResult({
-    required this.landmarks,
-    required this.displayPath,
-    required this.imageSize,
-  });
-
-  final FaceLandmarks? landmarks;
-  final String displayPath;
-  final Size imageSize;
-}
-
 class FaceDetectionService {
   FaceDetectionService({FaceDetector? detector})
       : _detector = detector ??
@@ -209,6 +197,10 @@ class FaceDetectionService {
       rightEye: contour(FaceContourType.rightEye),
       leftEyebrow: contour(FaceContourType.leftEyebrowTop),
       rightEyebrow: contour(FaceContourType.rightEyebrowTop),
+      leftEyebrowBottom: contour(FaceContourType.leftEyebrowBottom),
+      rightEyebrowBottom: contour(FaceContourType.rightEyebrowBottom),
+      leftCheekContour: contour(FaceContourType.leftCheek),
+      rightCheekContour: contour(FaceContourType.rightCheek),
       noseBridge: contour(FaceContourType.noseBridge),
       noseBottom: contour(FaceContourType.noseBottom),
       leftCheek: landmark(FaceLandmarkType.leftCheek),

@@ -7,7 +7,7 @@ import 'package:gal/gal.dart';
 import 'package:glowbebe/features/try_on/model/makeup_product.dart';
 import 'package:glowbebe/features/try_on/painter/makeup_painter.dart';
 import 'package:glowbebe/features/try_on/provider/makeup_controller.dart';
-import 'package:glowbebe/features/try_on/service/face_detection_service.dart';
+import 'package:glowbebe/features/try_on/service/face_mesh_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -26,20 +26,20 @@ class CaptureResult {
 }
 
 class ImageCaptureService {
-  ImageCaptureService({FaceDetectionService? faceDetection})
-      : _faceDetection = faceDetection ?? FaceDetectionService(),
-        _ownsDetector = faceDetection == null;
+  ImageCaptureService({FaceMeshService? faceMesh})
+      : _faceMesh = faceMesh ?? FaceMeshService(),
+        _ownsMesh = faceMesh == null;
 
-  ImageCaptureService.withSharedDetector(FaceDetectionService detector)
-      : _faceDetection = detector,
-        _ownsDetector = false;
+  ImageCaptureService.withSharedMesh(FaceMeshService mesh)
+      : _faceMesh = mesh,
+        _ownsMesh = false;
 
-  final FaceDetectionService _faceDetection;
-  final bool _ownsDetector;
+  final FaceMeshService _faceMesh;
+  final bool _ownsMesh;
 
   Future<void> dispose() async {
-    if (_ownsDetector) {
-      await _faceDetection.dispose();
+    if (_ownsMesh) {
+      await _faceMesh.dispose();
     }
   }
 
@@ -63,13 +63,13 @@ class ImageCaptureService {
     }
   }
 
-  /// Runs face detection on a full-resolution still, paints makeup, saves.
+  /// Runs MediaPipe mesh on a full-resolution still, paints makeup, saves.
   Future<CaptureResult> renderMakeupAndSave({
     required String photoPath,
     required MakeupController makeup,
   }) async {
     try {
-      final landmarks = await _faceDetection.processFile(photoPath);
+      final landmarks = await _faceMesh.processFile(photoPath);
       final bytes = await File(photoPath).readAsBytes();
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();

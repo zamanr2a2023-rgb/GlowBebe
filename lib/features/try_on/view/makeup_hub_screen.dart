@@ -11,7 +11,9 @@ import 'package:glowbebe/routes/route_names.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MakeupHubScreen extends StatefulWidget {
-  const MakeupHubScreen({super.key});
+  const MakeupHubScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<MakeupHubScreen> createState() => _MakeupHubScreenState();
@@ -22,28 +24,15 @@ class _MakeupHubScreenState extends State<MakeupHubScreen> {
   int _tabIndex = 2;
 
   void _onNavTap(int index) {
-    setState(() => _tabIndex = index);
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushNamed(context, RouteNames.analysisResults);
-        break;
-      case 2:
-        break;
-      case 3:
-        Navigator.pushNamed(context, RouteNames.shadeMatchedShop);
-        break;
-      case 4:
-        Navigator.pushNamed(context, RouteNames.placementAdvice);
-        break;
-      case 5:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-        break;
+    if (index == 2) {
+      setState(() => _tabIndex = index);
+      return;
     }
+    Navigator.pushReplacementNamed(
+      context,
+      RouteNames.mainShell,
+      arguments: index,
+    );
   }
 
   @override
@@ -231,10 +220,12 @@ class _MakeupHubScreenState extends State<MakeupHubScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: GlowBottomNav(
-        currentIndex: _tabIndex,
-        onTap: _onNavTap,
-      ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : GlowBottomNav(
+              currentIndex: _tabIndex,
+              onTap: _onNavTap,
+            ),
     );
   }
 }

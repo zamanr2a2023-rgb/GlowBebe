@@ -12,7 +12,7 @@ class GlowBebeApp extends StatelessWidget {
       title: 'GlowBebe',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      initialRoute: RouteNames.makeupHub,
+      initialRoute: RouteNames.splash,
       onGenerateRoute: AppRoutes.generateRoute,
     );
   }

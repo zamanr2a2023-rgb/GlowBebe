@@ -8,7 +8,7 @@ import 'package:glowbebe/core/constants/app_colors.dart';
 import 'package:glowbebe/features/try_on/model/makeup_product.dart';
 import 'package:glowbebe/features/try_on/painter/makeup_painter.dart';
 import 'package:glowbebe/features/try_on/provider/makeup_controller.dart';
-import 'package:glowbebe/features/try_on/service/face_detection_service.dart';
+import 'package:glowbebe/features/try_on/service/face_mesh_service.dart';
 import 'package:glowbebe/features/try_on/service/image_capture_service.dart';
 import 'package:glowbebe/features/try_on/widgets/try_on_widgets.dart';
 import 'package:glowbebe/routes/route_names.dart';
@@ -33,7 +33,7 @@ class RealtimeTryOnScreen extends StatefulWidget {
 class _RealtimeTryOnScreenState extends State<RealtimeTryOnScreen>
     with WidgetsBindingObserver {
   final MakeupController _makeup = MakeupController();
-  final FaceDetectionService _faceService = FaceDetectionService();
+  final FaceMeshService _faceService = FaceMeshService();
   late final ImageCaptureService _captureService;
   final ValueNotifier<FaceLandmarks?> _landmarks =
       ValueNotifier<FaceLandmarks?>(null);
@@ -59,7 +59,7 @@ class _RealtimeTryOnScreenState extends State<RealtimeTryOnScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _captureService = ImageCaptureService.withSharedDetector(_faceService);
+    _captureService = ImageCaptureService.withSharedMesh(_faceService);
 
     if (_useStaticImage) {
       _initializing = false;
@@ -167,6 +167,9 @@ class _RealtimeTryOnScreenState extends State<RealtimeTryOnScreen>
     }
 
     try {
+      await _faceService.ensureInitialized();
+      _faceService.resetTracking();
+
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
         if (!mounted) return;
@@ -582,20 +585,21 @@ class _RealtimeTryOnScreenState extends State<RealtimeTryOnScreen>
                   ),
                 ),
               Positioned(
-                right: 20,
-                top: MediaQuery.of(context).size.height * 0.38,
+                right: 16,
+                top: MediaQuery.of(context).padding.top + 64,
                 child: Column(
                   children: [
                     _ToolBtn(
                       icon: Icons.layers_outlined,
                       onTap: _showAppliedProducts,
+                      onLongPress: _makeup.toggleDebugLandmarks,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _ToolBtn(
                       icon: Icons.wb_sunny_outlined,
                       onTap: _makeup.toggleIntensitySlider,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Listener(
                       onPointerDown: (_) => _makeup.setHideMakeup(true),
                       onPointerUp: (_) => _makeup.setHideMakeup(false),
@@ -610,8 +614,8 @@ class _RealtimeTryOnScreenState extends State<RealtimeTryOnScreen>
               ),
               if (_makeup.intensityVisible)
                 Positioned(
-                  right: 76,
-                  top: MediaQuery.of(context).size.height * 0.38 + 56,
+                  right: 72,
+                  top: MediaQuery.of(context).padding.top + 64 + 60,
                   child: _IntensitySlider(
                     value: _makeup.selectedIntensity,
                     onChanged: _makeup.setIntensity,
@@ -927,10 +931,15 @@ class _MakeupPanel extends StatelessWidget {
 }
 
 class _ToolBtn extends StatelessWidget {
-  const _ToolBtn({required this.icon, required this.onTap});
+  const _ToolBtn({
+    required this.icon,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -942,6 +951,7 @@ class _ToolBtn extends StatelessWidget {
           color: AppColors.background.withValues(alpha: 0.7),
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: SizedBox(
               width: 48,
               height: 48,

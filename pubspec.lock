@@ -296,6 +296,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
+  mediapipe_face_mesh:
+    dependency: "direct main"
+    description:
+      name: mediapipe_face_mesh
+      sha256: "92792106f97d5734e3fcb2d457d6211a82fbee7519bd892fae02b7e28fae29f1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   meta:
     dependency: transitive
     description:

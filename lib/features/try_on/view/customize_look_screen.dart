@@ -8,7 +8,7 @@ import 'package:glowbebe/features/try_on/model/makeup_product.dart';
 import 'package:glowbebe/features/try_on/model/try_on_models.dart';
 import 'package:glowbebe/features/try_on/painter/makeup_painter.dart';
 import 'package:glowbebe/features/try_on/provider/makeup_controller.dart';
-import 'package:glowbebe/features/try_on/service/face_detection_service.dart';
+import 'package:glowbebe/features/try_on/service/face_mesh_service.dart';
 import 'package:glowbebe/features/try_on/service/image_capture_service.dart';
 import 'package:glowbebe/features/try_on/widgets/try_on_widgets.dart';
 import 'package:glowbebe/routes/route_names.dart';
@@ -30,17 +30,18 @@ class CustomizeLookScreen extends StatefulWidget {
 
 class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
   final MakeupController _makeup = MakeupController();
-  final FaceDetectionService _faceService = FaceDetectionService();
+  final FaceMeshService _faceService = FaceMeshService();
   late final ImageCaptureService _captureService;
 
   FaceLandmarks? _landmarks;
   Size? _imageSize;
   String? _displayPath;
-  int _presetIndex = 1; // Soft Glam
-  double _intensity = 0.65;
-  double _opacity = 0.75;
+  String? _savedPath;
+  int _presetIndex = 1; // Soft
+  double _intensity = 0.10;
+  double _opacity = 0.10;
   bool _analyzing = true;
-  bool _capturing = false;
+  bool _busy = false;
   String? _hint;
 
   bool get _hasPhoto {
@@ -51,10 +52,13 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
   @override
   void initState() {
     super.initState();
-    _captureService = ImageCaptureService.withSharedDetector(_faceService);
-    _makeup.setLookOpacity(_opacity);
+    _captureService = ImageCaptureService.withSharedMesh(_faceService);
     _makeup.applyStylePreset(_presetIndex);
-    _intensity = 0.65;
+    // First open: light defaults — user raises with Refine Look sliders.
+    _intensity = 0.10;
+    _opacity = 0.10;
+    _makeup.setAllBaseIntensities(_intensity);
+    _makeup.setLookOpacity(_opacity);
     unawaited(_analyzePhoto());
   }
 
@@ -115,67 +119,101 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
   void _onPreset(int index) {
     setState(() {
       _presetIndex = index;
-      // Match style default strengths (also applied inside controller).
-      _intensity = switch (index.clamp(0, 3)) {
-        0 => 0.45,
-        1 => 0.65,
-        2 => 0.55,
-        _ => 0.85,
-      };
+      // New style starts at 10%; user increases shade / opacity after.
+      _intensity = 0.10;
+      _opacity = 0.10;
     });
     _makeup.applyStylePreset(index);
+    _makeup.setAllBaseIntensities(0.10);
+    _makeup.setLookOpacity(0.10);
   }
 
-  Future<void> _captureLook() async {
-    if (_capturing) return;
+  Future<CaptureResult?> _renderLook() async {
     final path = _displayPath ?? widget.imagePath;
-    if (path == null) {
-      Navigator.pushNamed(
-        context,
-        RouteNames.captureComparison,
-        arguments: <String, dynamic>{'mirror': widget.mirror},
-      );
-      return;
+    if (path == null) return null;
+
+    final result = await _captureService.renderMakeupAndSave(
+      photoPath: path,
+      makeup: _makeup,
+    );
+    if (result.status == CaptureStatus.success && result.path != null) {
+      _savedPath = result.path;
     }
+    return result;
+  }
 
-    setState(() => _capturing = true);
+  Future<void> _applyLook() async {
+    if (_busy || !_hasPhoto) return;
+    setState(() => _busy = true);
     try {
-      final result = await _captureService.renderMakeupAndSave(
-        photoPath: path,
-        makeup: _makeup,
-      );
+      final path = _displayPath ?? widget.imagePath!;
+      final result = await _renderLook();
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message ?? 'Look captured'),
-          backgroundColor: result.status == CaptureStatus.success
-              ? AppColors.primary
-              : Colors.redAccent,
-        ),
-      );
 
       await Navigator.pushNamed(
         context,
         RouteNames.captureComparison,
         arguments: <String, dynamic>{
           'beforePath': path,
-          'afterPath': result.path ?? path,
-          'imagePath': result.path ?? path,
+          'afterPath': result?.path ?? path,
+          'imagePath': result?.path ?? path,
           'mirror': false,
         },
       );
     } finally {
-      if (mounted) setState(() => _capturing = false);
+      if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _saveLook() async {
+    if (_busy || !_hasPhoto) return;
+    setState(() => _busy = true);
+    try {
+      final result = await _renderLook();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result?.message ?? 'Look saved'),
+          backgroundColor: result?.status == CaptureStatus.success
+              ? AppColors.primary
+              : Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _shareLook() async {
+    if (_busy || !_hasPhoto) return;
+    setState(() => _busy = true);
+    try {
+      if (_savedPath == null) {
+        await _renderLook();
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Share sheet coming soon')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _tryAgain() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pushReplacementNamed(context, RouteNames.realtimeTryOn);
   }
 
   Widget _buildPreview() {
     final path = _displayPath ?? widget.imagePath;
-    final size = _imageSize ?? const Size(800, 800);
+    final size = _imageSize ?? const Size(800, 1000);
 
     if (path == null || !File(path).existsSync()) {
-      return Image.asset(AppAssets.lookSoftGlam, fit: BoxFit.cover);
+      return Image.asset(AppAssets.lookSoftGlam, fit: BoxFit.contain);
     }
 
     return FittedBox(
@@ -211,6 +249,9 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenH = MediaQuery.sizeOf(context).height;
+    final previewH = (screenH * 0.48).clamp(280.0, 420.0);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -218,25 +259,32 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
           children: [
             BrandHeader(
               onClose: () => Navigator.pop(context),
+              onShare: () => unawaited(_shareLook()),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                 children: [
-                  Center(
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
                     child: Container(
-                      width: 220,
-                      height: 220,
+                      key: ValueKey('look_$_presetIndex'),
+                      width: double.infinity,
+                      height: previewH,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                        color: const Color(0xFFF3EEEA),
+                        borderRadius: BorderRadius.circular(28),
                         border: Border.all(
                           color: const Color(0xFFD2C4BE),
-                          width: 2,
+                          width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 20,
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
@@ -270,20 +318,7 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: AppColors.primary,
-                      inactiveTrackColor: AppColors.surfaceSoft,
-                      thumbColor: AppColors.primary,
-                      trackHeight: 2,
-                    ),
-                    child: Slider(
-                      value: _intensity,
-                      onChanged: _onIntensityChanged,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 22),
                   Text(
                     'Choose Style',
                     style: GoogleFonts.playfairDisplay(
@@ -294,58 +329,75 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
                   ),
                   const SizedBox(height: 14),
                   SizedBox(
-                    height: 96,
+                    height: 104,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: TryOnMockData.featuredLooks.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 16),
+                      separatorBuilder: (_, _) => const SizedBox(width: 14),
                       itemBuilder: (context, index) {
                         final look = TryOnMockData.featuredLooks[index];
                         final selected = _presetIndex == index;
                         return GestureDetector(
                           onTap: () => _onPreset(index),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            width: 72,
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: selected
+                                          ? AppColors.primary
+                                          : const Color(0x00FFFFFF),
+                                      width: 2.5,
+                                    ),
+                                    boxShadow: selected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.22),
+                                              blurRadius: 10,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  padding: const EdgeInsets.all(2),
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      look.image,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  look.title,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
                                     color: selected
                                         ? AppColors.primary
-                                        : Colors.transparent,
-                                    width: 2.5,
+                                        : AppColors.textSecondary,
+                                    fontWeight: selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(2),
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    look.image,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                look.title.split(' ').first,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  color: selected
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
-                                  fontWeight: selected
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   Text(
                     'Refine Look',
                     style: GoogleFonts.playfairDisplay(
@@ -365,19 +417,110 @@ class _CustomizeLookScreenState extends State<CustomizeLookScreen> {
                     value: _opacity,
                     onChanged: _onOpacityChanged,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   PrimaryPillButton(
-                    label: _capturing ? 'SAVING…' : 'CAPTURE LOOK',
-                    icon: Icons.camera_alt_outlined,
+                    label: _busy ? 'WORKING…' : 'APPLY LOOK',
+                    icon: Icons.check_rounded,
                     onPressed: () {
-                      if (_capturing || !_hasPhoto) return;
-                      unawaited(_captureLook());
+                      if (_busy || !_hasPhoto) return;
+                      unawaited(_applyLook());
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SecondaryAction(
+                          label: 'Save Look',
+                          icon: Icons.bookmark_border_rounded,
+                          onTap: () {
+                            if (_busy || !_hasPhoto) return;
+                            unawaited(_saveLook());
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _SecondaryAction(
+                          label: 'Share',
+                          icon: Icons.ios_share_rounded,
+                          onTap: () {
+                            if (_busy || !_hasPhoto) return;
+                            unawaited(_shareLook());
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _tryAgain,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(
+                        'Try Again',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: BorderSide(
+                          color: AppColors.primary.withValues(alpha: 0.7),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryAction extends StatelessWidget {
+  const _SecondaryAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE8E2DE),
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );

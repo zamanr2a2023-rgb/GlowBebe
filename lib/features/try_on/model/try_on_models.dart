@@ -69,27 +69,33 @@ class TryOnMockData {
   static const List<LookItem> featuredLooks = [
     LookItem(
       id: 'natural',
-      title: 'Natural Glow',
+      title: 'Natural',
       subtitle: 'Clean, dewy, everyday finish.',
       image: AppAssets.lookNatural,
     ),
     LookItem(
       id: 'soft_glam',
-      title: 'Soft Glam',
+      title: 'Soft',
       subtitle: 'Polished look with neutral tones.',
       image: AppAssets.lookSoftGlam,
     ),
     LookItem(
       id: 'office',
-      title: 'Office Look',
+      title: 'Office',
       subtitle: 'Professional and sophisticated matte.',
       image: AppAssets.lookOffice,
     ),
     LookItem(
       id: 'party',
-      title: 'Party Look',
+      title: 'Party',
       subtitle: 'Bolder eyes and high-shine finishes.',
       image: AppAssets.lookParty,
+    ),
+    LookItem(
+      id: 'date_night',
+      title: 'Date Night',
+      subtitle: 'Romantic glow with warm evening tones.',
+      image: AppAssets.lookDateNight,
     ),
   ];
 
@@ -139,10 +145,10 @@ class TryOnMockData {
 
   static const List<String> presets = [
     'Natural',
-    'Soft Glam',
+    'Soft',
     'Office',
     'Party',
-    'Editorial',
+    'Date Night',
   ];
 
   static const List<ProductItem> shopProducts = [

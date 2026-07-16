@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:glowbebe/core/constants/app_strings.dart';
-import 'package:glowbebe/core/utils/validators.dart';
-import 'package:glowbebe/core/widgets/custom_button.dart';
-import 'package:glowbebe/core/widgets/custom_text_field.dart';
+import 'package:glowbebe/core/constants/app_colors.dart';
+import 'package:glowbebe/core/widgets/glow_ui.dart';
+import 'package:glowbebe/features/auth/widgets/auth_widgets.dart';
 import 'package:glowbebe/routes/route_names.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,9 +13,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscure = true;
 
   @override
   void dispose() {
@@ -24,49 +24,105 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _goMain() {
+    Navigator.pushReplacementNamed(context, RouteNames.mainShell);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.login)),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              CustomTextField(
-                controller: _emailController,
-                label: AppStrings.email,
-                keyboardType: TextInputType.emailAddress,
-                validator: Validators.email,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _passwordController,
-                label: AppStrings.password,
-                obscureText: true,
-                validator: Validators.password,
-              ),
-              const SizedBox(height: 24),
-              CustomButton(
-                label: AppStrings.login,
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    Navigator.pushReplacementNamed(context, RouteNames.home);
-                  }
-                },
-              ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, RouteNames.forgotPassword),
-                child: const Text(AppStrings.forgotPassword),
-              ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, RouteNames.register),
-                child: const Text(AppStrings.register),
-              ),
-            ],
+      backgroundColor: AppColors.background,
+      body: AuthAtmosphere(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AuthLuminousHeader(),
+                const SizedBox(height: 40),
+                Text(
+                  'Welcome Back',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                    letterSpacing: -0.96,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to continue your beauty journey.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                GlowField(
+                  label: 'Email Address',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  hint: 'Enter your email address',
+                ),
+                const SizedBox(height: 20),
+                GlowField(
+                  label: 'Password',
+                  controller: _passwordController,
+                  obscureText: _obscure,
+                  hint: 'Enter your password',
+                  labelTrailing: GestureDetector(
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      RouteNames.forgotPassword,
+                    ),
+                    child: Text(
+                      'Forgot Password?',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  suffix: IconButton(
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                GlowPrimaryButton(
+                  label: 'Sign In',
+                  height: 56,
+                  onPressed: _goMain,
+                ),
+                const SizedBox(height: 28),
+                const AuthOrDivider(label: 'OR LOGIN WITH'),
+                const SizedBox(height: 20),
+                AuthSocialRow(onTap: _goMain),
+                const SizedBox(height: 28),
+                GlowOutlinedButton(
+                  label: 'CONTINUE AS GUEST',
+                  height: 56,
+                  onPressed: _goMain,
+                ),
+                const SizedBox(height: 24),
+                AuthFooterLink(
+                  prefix: 'New to Luminous? ',
+                  action: 'Sign Up',
+                  onTap: () =>
+                      Navigator.pushNamed(context, RouteNames.register),
+                ),
+              ],
+            ),
           ),
         ),
       ),
