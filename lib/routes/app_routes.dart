@@ -106,11 +106,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const BeautyForecastScreen());
       case RouteNames.skinQuestionnaire:
         final args = settings.arguments;
-        final fromRegister =
-            args is Map && args['fromRegister'] == true;
+        final fromAuth = args is Map && args['fromAuth'] == true;
         return MaterialPageRoute(
           builder: (_) => SkinQuestionnaireScreen(
-            fromRegister: fromRegister,
+            fromAuth: fromAuth,
           ),
         );
       case RouteNames.skinScanIntro:

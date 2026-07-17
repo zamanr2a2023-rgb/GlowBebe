@@ -102,7 +102,7 @@ class GlowBottomNav extends StatelessWidget {
   // Figma: Home, Skin, Makeup, Shop, Community, Me
   static const _items = [
     (Icons.home_outlined, Icons.home, 'Home'),
-    (Icons.sentiment_satisfied_alt_outlined, Icons.sentiment_satisfied_alt, 'Skin'),
+    (Icons.face_outlined, Icons.face, 'Skin'),
     (Icons.brush_outlined, Icons.brush, 'Makeup'),
     (Icons.shopping_bag_outlined, Icons.shopping_bag, 'Shop'),
     (Icons.people_outline, Icons.people, 'Community'),

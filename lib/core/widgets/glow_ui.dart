@@ -10,6 +10,7 @@ class GlowPrimaryButton extends StatelessWidget {
     this.expand = true,
     this.height = 56,
     this.icon,
+    this.iconLeading = false,
   });
 
   final String label;
@@ -17,6 +18,7 @@ class GlowPrimaryButton extends StatelessWidget {
   final bool expand;
   final double height;
   final IconData? icon;
+  final bool iconLeading;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,10 @@ class GlowPrimaryButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (icon != null && iconLeading) ...[
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 8),
+            ],
             Text(
               label,
               style: GoogleFonts.plusJakartaSans(
@@ -48,7 +54,7 @@ class GlowPrimaryButton extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            if (icon != null) ...[
+            if (icon != null && !iconLeading) ...[
               const SizedBox(width: 8),
               Icon(icon, size: 18, color: Colors.white),
             ],
@@ -365,6 +371,8 @@ class GlowScoreRing extends StatelessWidget {
     this.size = 140,
     this.label,
     this.subtitle,
+    this.solidRing = false,
+    this.ringStrokeWidth,
   });
 
   final int score;
@@ -372,10 +380,13 @@ class GlowScoreRing extends StatelessWidget {
   final double size;
   final String? label;
   final String? subtitle;
+  final bool solidRing;
+  final double? ringStrokeWidth;
 
   @override
   Widget build(BuildContext context) {
     final progress = (score / max).clamp(0.0, 1.0);
+    final stroke = ringStrokeWidth ?? size * 0.085;
     final scoreSize = size * 0.36;
     final denomSize = size * 0.14;
     final labelSize = size * 0.075;
@@ -386,17 +397,30 @@ class GlowScoreRing extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: size * 0.085,
-              backgroundColor: const Color(0xFFE8E2DF),
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-              strokeCap: StrokeCap.round,
+          if (solidRing)
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary,
+                  width: stroke,
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: size,
+              height: size,
+              child: CircularProgressIndicator(
+                value: progress,
+                strokeWidth: stroke,
+                backgroundColor: const Color(0xFFE8E2DF),
+                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                strokeCap: StrokeCap.round,
+              ),
             ),
-          ),
           // Centered score block — Figma: 85 /100 · EXCELLENT
           Padding(
             padding: EdgeInsets.only(top: size * 0.02),
@@ -632,6 +656,8 @@ class GlowAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showBack = true,
     this.brandStyle = false,
     this.centerTitle = true,
+    this.titleColor,
+    this.serifTitle = true,
   });
 
   final String title;
@@ -639,6 +665,8 @@ class GlowAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBack;
   final bool brandStyle;
   final bool centerTitle;
+  final Color? titleColor;
+  final bool serifTitle;
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -656,18 +684,24 @@ class GlowAppBar extends StatelessWidget implements PreferredSizeWidget {
           : null,
       title: Text(
         title,
-        style: brandStyle
-            ? GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 2.0,
-                color: AppColors.primary,
-              )
-            : GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.8,
-                color: AppColors.primary,
+        style: serifTitle
+            ? (brandStyle
+                ? GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 2.0,
+                    color: titleColor ?? AppColors.primary,
+                  )
+                : GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.8,
+                    color: titleColor ?? AppColors.primary,
+                  ))
+            : GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: titleColor ?? AppColors.textWarm,
               ),
       ),
       centerTitle: centerTitle,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:glowbebe/core/constants/app_assets.dart';
 import 'package:glowbebe/core/constants/app_colors.dart';
 import 'package:glowbebe/core/widgets/glow_ui.dart';
+import 'package:glowbebe/features/auth/auth_navigation.dart';
 import 'package:glowbebe/routes/route_names.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,11 +10,11 @@ import 'package:google_fonts/google_fonts.dart';
 class SkinQuestionnaireScreen extends StatefulWidget {
   const SkinQuestionnaireScreen({
     super.key,
-    this.fromRegister = false,
+    this.fromAuth = false,
   });
 
-  /// After first-time register + OTP, finish navigates to main shell.
-  final bool fromRegister;
+  /// After first-time login/register, finish navigates to main shell.
+  final bool fromAuth;
 
   @override
   State<SkinQuestionnaireScreen> createState() =>
@@ -28,7 +29,7 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
   // Step 0 — Concerns + Tone
   final _concerns = <String>{'Hydration'};
   double _skinTone = 0.35;
-  String _undertone = 'Cool';
+  String _undertone = 'Neutral';
 
   // Step 1 — Beauty Goals
   final _goals = <String>{'Clear Skin'};
@@ -37,43 +38,49 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
   String? _skinType = 'Combination';
 
   // Step 3 — Ingredient Avoidance
-  final _allergens = <String>{'Fragrance', 'Alcohol'};
+  final _allergens = <String>{'Parabens'};
 
   // Step 4 — Routine Preferences
   String _timePref = 'Both';
   String _complexity = 'Advanced';
-  final _planChips = <String>{'SPF', 'Niacinamide', 'Ceramides', 'Peptides'};
+
+  static const _planElements = [
+    'Retinol',
+    'Hyaluronic Acid',
+    'Vitamin C',
+    'SPF 50+',
+  ];
 
   static const _concernOptions = <_ConcernItem>[
     _ConcernItem(
       'Hydration',
-      'Restore moisture balance and plump dryness.',
+      'Replenishing deep moisture and barrier health.',
       Icons.water_drop_outlined,
     ),
     _ConcernItem(
       'Texture',
-      'Smooth rough patches and refine overall feel.',
+      'Smoothing rough patches and refining pores.',
       Icons.texture,
     ),
     _ConcernItem(
       'Acne',
-      'Calm breakouts and prevent recurring congestion.',
+      'Targeting active breakouts and congestion.',
       Icons.bubble_chart_outlined,
     ),
     _ConcernItem(
       'Wrinkles',
-      'Softens fine lines and supports firmness.',
+      'Smoothing fine lines and restoring elasticity.',
       Icons.timeline,
     ),
     _ConcernItem(
       'Dark Spots',
-      'Fade discoloration for a more even tone.',
-      Icons.brightness_6_outlined,
+      'Fading localized UV damage and post-acne marks.',
+      Icons.blur_circular_outlined,
     ),
     _ConcernItem(
       'Redness',
-      'Soothe sensitivity and visible flushing.',
-      Icons.favorite_border,
+      'Calming sensitivity and evening reactive skin.',
+      Icons.report_outlined,
     ),
   ];
 
@@ -96,12 +103,12 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
     _GoalItem(
       'Acne Control',
       'Combat breakouts and soothe inflammation with clinical precision.',
-      Icons.healing_outlined,
+      Icons.medical_services_outlined,
     ),
     _GoalItem(
       'Makeup Matching',
       'Find the perfect foundation shade and formula for your skin.',
-      Icons.face_retouching_natural,
+      Icons.palette_outlined,
     ),
   ];
 
@@ -119,47 +126,47 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
     _SkinTypeItem(
       'Combination',
       'An oily T-zone (forehead, nose, chin) paired with dry or normal cheeks.',
-      Icons.blur_on,
+      Icons.balance_outlined,
     ),
     _SkinTypeItem(
       'Sensitive',
       'Reacts easily to products, prone to redness, itching, or burning sensations.',
-      Icons.health_and_safety_outlined,
+      Icons.spa_outlined,
     ),
   ];
 
   static const _allergenOptions = <_AllergenItem>[
     _AllergenItem(
-      'Fragrance',
-      'Synthetic scents that can trigger irritation or headaches.',
-      Icons.air,
-    ),
-    _AllergenItem(
-      'Alcohol',
-      'Drying alcohols that may compromise the skin barrier.',
+      'Parabens',
+      'Preservatives some prefer to exclude from formulas.',
       Icons.science_outlined,
     ),
     _AllergenItem(
       'Sulfates',
       'Harsh surfactants that strip natural oils.',
-      Icons.cleaning_services_outlined,
+      Icons.open_in_new_outlined,
     ),
     _AllergenItem(
-      'Essential Oils',
-      'Plant oils that can sensitize reactive skin.',
-      Icons.local_florist_outlined,
+      'Fragrance',
+      'Synthetic scents that can trigger irritation or headaches.',
+      Icons.air_outlined,
     ),
     _AllergenItem(
-      'Parabens',
-      'Preservatives some prefer to exclude from formulas.',
-      Icons.biotech_outlined,
+      'Drying Alcohol',
+      'Drying alcohols that may compromise the skin barrier.',
+      Icons.wine_bar_outlined,
+    ),
+    _AllergenItem(
+      'Mineral Oils',
+      'Petroleum-derived oils that may clog pores or feel heavy.',
+      Icons.water_drop_outlined,
     ),
   ];
 
   static const _timeOptions = <_TimeOption>[
-    _TimeOption('Morning', Icons.wb_twilight),
-    _TimeOption('Evening', Icons.nights_stay_outlined),
-    _TimeOption('Both', Icons.autorenew),
+    _TimeOption('Morning only', Icons.wb_twilight_outlined),
+    _TimeOption('Night only', Icons.bedtime_outlined),
+    _TimeOption('Both', Icons.wb_sunny_outlined),
   ];
 
   @override
@@ -186,13 +193,14 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
       );
-    } else {
-      Navigator.maybePop(context);
     }
   }
 
-  void _finish() {
-    if (widget.fromRegister) {
+  Future<void> _finish() async {
+    await AuthNavigation.markGoalsOnboardingComplete();
+    if (!mounted) return;
+
+    if (widget.fromAuth) {
       Navigator.pushNamedAndRemoveUntil(
         context,
         RouteNames.mainShell,
@@ -207,64 +215,54 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
     }
   }
 
-  String get _appBarTitle {
-    switch (_step) {
-      case 0:
-        return 'CONCERNS';
-      case 1:
-        return 'GOALS';
-      case 2:
-        return 'PROFILE';
-      case 3:
-        return 'AVOID';
-      default:
-        return 'ROUTINE';
-    }
+  String get _continueLabel {
+    if (_step == 4) return 'Done';
+    return 'NEXT STEP';
+  }
+
+  String get _selectedToneLabel {
+    final depth = _skinTone < 0.33
+        ? 'Light'
+        : (_skinTone < 0.66 ? 'Medium' : 'Deep');
+    return '$_undertone $depth';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _GoalAppBar(
-              title: _appBarTitle,
-              onBack: _back,
-              onSkip: _step < 4 ? _next : _finish,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: (_step + 1) / 5,
-                  minHeight: 4,
-                  backgroundColor: const Color(0xFFD2C4BE).withValues(alpha: 0.35),
-                  color: AppColors.primary,
+      body: _GoalFlowBackdrop(
+        flat: _step == 3 || _step == 4,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _GoalStepHeader(
+                step: _step,
+                totalSteps: 5,
+                onSkip: _step < 4 ? _next : _finish,
+                onBack: _step > 0 ? _back : null,
+              ),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (i) => setState(() => _step = i),
+                  children: [
+                    _buildConcernsTone(),
+                    _buildBeautyGoals(),
+                    _buildSkinProfile(),
+                    _buildIngredientAvoidance(),
+                    _buildRoutinePreferences(),
+                  ],
                 ),
               ),
-            ),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (i) => setState(() => _step = i),
-                children: [
-                  _buildConcernsTone(),
-                  _buildBeautyGoals(),
-                  _buildSkinProfile(),
-                  _buildIngredientAvoidance(),
-                  _buildRoutinePreferences(),
-                ],
+              _ContinueFooter(
+                label: _continueLabel,
+                onPressed: _next,
+                icon: _step == 4 ? Icons.check_circle_outline : Icons.arrow_forward_ios,
               ),
-            ),
-            _ContinueFooter(
-              label: _step == 4 ? 'DONE' : 'CONTINUE',
-              onPressed: _next,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -277,32 +275,34 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       children: [
         Text(
-          'PERSONALIZATION',
+          'SKIN ANALYSIS',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.6,
+            letterSpacing: 1.4,
             color: AppColors.primary,
           ),
         ),
         const SizedBox(height: 10),
         Text(
-          'Build your clinical profile',
+          'Tailoring your perfect regimen.',
           textAlign: TextAlign.center,
           style: GoogleFonts.playfairDisplay(
-            fontSize: 28,
+            fontSize: 32,
             fontWeight: FontWeight.w600,
+            height: 1.25,
+            letterSpacing: -0.5,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
-          'Share your concerns and tone so we can tailor every recommendation with clinical precision.',
+          'To provide clinical-grade recommendations, we need to understand your unique canvas. Your selections here calibrate our AI formulation engine.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
-            height: 1.5,
+            fontSize: 18,
+            height: 28 / 18,
             color: AppColors.textSecondary,
           ),
         ),
@@ -319,7 +319,7 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         ..._concernOptions.map((c) {
           final selected = _concerns.contains(c.title);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 12),
             child: _ConcernCard(
               item: c,
               selected: selected,
@@ -344,18 +344,18 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         ),
         const SizedBox(height: 14),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFFD2C4BE).withValues(alpha: 0.35),
+              color: const Color(0xFFD2C4BE).withValues(alpha: 0.3),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
@@ -363,67 +363,136 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.asset(
-                    AppAssets.lookNatural,
-                    fit: BoxFit.cover,
+                  aspectRatio: 308 / 256,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        AppAssets.productExtra1,
+                        fit: BoxFit.cover,
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.45),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Selected Tone:',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 16,
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                    ),
+                                  ),
+                                  Text(
+                                    _selectedToneLabel,
+                                    style: GoogleFonts.playfairDisplay(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.check,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Text(
                 'Adjust your skin tone',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 10),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 8,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-                ),
-                child: Slider(
-                  value: _skinTone,
-                  onChanged: (v) => setState(() => _skinTone = v),
-                  activeColor: Color.lerp(
-                    const Color(0xFFF9E4D4),
-                    const Color(0xFF3C201F),
-                    _skinTone,
+              const SizedBox(height: 12),
+              Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFF9E4D4),
+                          Color(0xFFF2D2BD),
+                          Color(0xFFE5B99A),
+                          Color(0xFFC68642),
+                          Color(0xFF8D5524),
+                          Color(0xFF3C201F),
+                        ],
+                      ),
+                    ),
                   ),
-                  inactiveColor: const Color(0xFFD2C4BE).withValues(alpha: 0.4),
-                ),
-              ),
-              Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF9E4D4), Color(0xFF3C201F)],
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 8,
+                      trackShape: const RoundedRectSliderTrackShape(),
+                      overlayShape: SliderComponentShape.noOverlay,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                    ),
+                    child: Slider(
+                      value: _skinTone,
+                      onChanged: (v) => setState(() => _skinTone = v),
+                      activeColor: Colors.transparent,
+                      inactiveColor: Colors.transparent,
+                    ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 18),
               Row(
-                children: ['Cool', 'Warm', 'Neutral'].map((u) {
+                children: ['Neutral', 'Cool', 'Warm'].map((u) {
                   final selected = _undertone == u;
                   return Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(right: u == 'Neutral' ? 0 : 8),
+                      padding: EdgeInsets.only(right: u == 'Warm' ? 0 : 8),
                       child: GestureDetector(
                         onTap: () => setState(() => _undertone = u),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 24),
                           decoration: BoxDecoration(
                             color: selected
                                 ? const Color(0xFFFFDBCE)
                                 : AppColors.surfaceSoft,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: selected
                                   ? AppColors.primary
@@ -435,7 +504,7 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
                             u,
                             textAlign: TextAlign.center,
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: selected
                                   ? AppColors.primary
@@ -454,26 +523,37 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: const Color(0xFFF5E2D9),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
-              const SizedBox(width: 10),
+              const Icon(Icons.psychology_outlined, size: 20, color: AppColors.primary),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'AI will refine shade matching using your tone and undertone selections.',
+                  'Our AI adjusts ingredient concentrations based on your melanin levels to prevent hyperpigmentation risks.',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    height: 1.4,
+                    fontSize: 14,
+                    height: 1.45,
                     color: const Color(0xFF72635C),
                   ),
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'You can select multiple goals. Your data is processed with medical-grade privacy standards.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            height: 1.5,
+            color: AppColors.textTertiary,
           ),
         ),
       ],
@@ -487,29 +567,31 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       children: [
         Text(
-          'What are your beauty goals?',
+          "What's your beauty goal?",
           textAlign: TextAlign.center,
           style: GoogleFonts.playfairDisplay(
-            fontSize: 28,
+            fontSize: 32,
             fontWeight: FontWeight.w600,
+            height: 1.25,
+            letterSpacing: -0.5,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
-          'Select the outcomes that matter most. We will prioritize formulations around these goals.',
+          "Select the areas you'd like to focus on. We'll curate your personalized routine based on your choices.",
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
-            height: 1.5,
+            fontSize: 18,
+            height: 28 / 18,
             color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
         ..._goalOptions.map((g) {
           final selected = _goals.contains(g.title);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 16),
             child: _GoalCard(
               item: g,
               selected: selected,
@@ -523,6 +605,16 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
             ),
           );
         }),
+        const SizedBox(height: 8),
+        Text(
+          'You can select multiple goals. Your data is processed with medical-grade privacy standards.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            height: 1.5,
+            color: AppColors.textTertiary,
+          ),
+        ),
       ],
     );
   }
@@ -539,24 +631,25 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
           style: GoogleFonts.playfairDisplay(
             fontSize: 28,
             fontWeight: FontWeight.w600,
+            height: 34 / 28,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 24),
         Text(
           "Understanding your skin type is the foundation of your personalized skincare formula. Select the category that best describes your complexion's daily behavior.",
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            height: 1.55,
-            color: AppColors.textSecondary,
+            fontSize: 16,
+            height: 26 / 16,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
         ..._skinTypes.map((t) {
           final selected = _skinType == t.title;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 20),
             child: _SkinTypeCard(
               item: t,
               selected: selected,
@@ -564,53 +657,7 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
             ),
           );
         }),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary.withValues(alpha: 0.9),
-                const Color(0xFF5C3D32),
-              ],
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CLINICAL MATCH',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.4,
-                  color: const Color(0xFFFFDBCE),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your skin type unlocks the right actives',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We calibrate concentration and texture to how your skin behaves day to day.',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: Colors.white.withValues(alpha: 0.85),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const _ExpertGuidanceCard(),
       ],
     );
   }
@@ -636,43 +683,51 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
           style: GoogleFonts.playfairDisplay(
             fontSize: 28,
             fontWeight: FontWeight.w600,
+            height: 34 / 28,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           'Select substances that react with your skin or that you prefer to exclude from your clinical formulation.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            height: 1.55,
-            color: AppColors.textSecondary,
+            fontSize: 16,
+            height: 24 / 16,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         TextField(
           controller: _searchCtrl,
           onChanged: (_) => setState(() {}),
-          style: GoogleFonts.plusJakartaSans(fontSize: 15),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 16,
+            height: 20 / 16,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: 'Search specific ingredients (e.g.)',
             hintStyle: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
+              fontSize: 16,
+              height: 20 / 16,
               color: const Color(0xFF6B7280),
             ),
-            prefixIcon: const Icon(Icons.search, color: AppColors.iconMuted),
+            prefixIcon: const Icon(
+              Icons.search,
+              size: 18,
+              color: Color(0xFF807570),
+            ),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFD2C4BE)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: const Color(0xFFD2C4BE).withValues(alpha: 0.6),
-              ),
+              borderSide: const BorderSide(color: Color(0xFFD2C4BE)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -680,21 +735,23 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Text(
-          'COMMON ALLERGENS',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
-            color: AppColors.primary,
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'COMMON ALLERGENS',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.4,
+              color: AppColors.primary,
+            ),
           ),
         ),
-        const SizedBox(height: 12),
         ...filtered.map((a) {
           final on = _allergens.contains(a.title);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: _AllergenCard(
               item: a,
               enabled: on,
@@ -711,7 +768,7 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: const Color(0xFFF5E2D9),
             borderRadius: BorderRadius.circular(12),
@@ -719,14 +776,18 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
-              const SizedBox(width: 10),
+              const Icon(
+                Icons.info_outline,
+                size: 20,
+                color: Color(0xFF72635C),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'You can update avoided ingredients anytime from your Skin Profile.',
+                  'Our AI will automatically scan your product history for matches and exclude these from future recommendations.',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
-                    height: 1.4,
+                    height: 16 / 12,
                     color: const Color(0xFF72635C),
                   ),
                 ),
@@ -750,26 +811,27 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
           style: GoogleFonts.playfairDisplay(
             fontSize: 28,
             fontWeight: FontWeight.w600,
+            height: 34 / 28,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 24),
         Text(
           'To craft your clinical-grade skincare plan, we need to understand how much time you can dedicate to your daily transformation.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            height: 1.55,
-            color: AppColors.textSecondary,
+            fontSize: 18,
+            height: 28 / 18,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 32),
         Text(
           'ROUTINE FREQUENCY',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            letterSpacing: 1.4,
             color: AppColors.primary,
           ),
         ),
@@ -777,64 +839,30 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         Text(
           'When do you prefer to perform your skincare rituals?',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            color: AppColors.textSecondary,
+            fontSize: 16,
+            height: 24 / 16,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         ..._timeOptions.map((t) {
           final selected = _timePref == t.label;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: GestureDetector(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: _FrequencyCard(
+              option: t,
+              selected: selected,
               onTap: () => setState(() => _timePref = t.label),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                decoration: BoxDecoration(
-                  color: selected ? Colors.white : AppColors.surfaceSoft,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: selected
-                        ? AppColors.primary
-                        : const Color(0xFFD2C4BE).withValues(alpha: 0.35),
-                    width: selected ? 1.5 : 1,
-                  ),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    Icon(t.icon, color: AppColors.primary, size: 22),
-                    const SizedBox(width: 14),
-                    Text(
-                      t.label,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           );
         }),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         Text(
           'ROUTINE COMPLEXITY',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            letterSpacing: 1.4,
             color: AppColors.primary,
           ),
         ),
@@ -842,66 +870,54 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
         Text(
           'How many steps are you willing to include in your regimen?',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            color: AppColors.textSecondary,
+            fontSize: 16,
+            height: 24 / 16,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _ComplexityCard(
           title: 'Simple',
           subtitle: 'Cleanse, Hydrate, Protect. (3 steps)',
+          stepCount: 3,
           selected: _complexity == 'Simple',
           onTap: () => setState(() => _complexity = 'Simple'),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 20),
         _ComplexityCard(
           title: 'Advanced',
           subtitle: 'The full multi-layered treatment. (7+ steps)',
+          stepCount: 7,
           selected: _complexity == 'Advanced',
           onTap: () => setState(() => _complexity = 'Advanced'),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         Text(
           'Common Elements in Your Future Plan:',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            letterSpacing: 0.7,
+            color: const Color(0xFF4E4540),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: ['SPF', 'Niacinamide', 'Ceramides', 'Peptides'].map((chip) {
-            final selected = _planChips.contains(chip);
-            return GestureDetector(
-              onTap: () => setState(() {
-                if (selected) {
-                  _planChips.remove(chip);
-                } else {
-                  _planChips.add(chip);
-                }
-              }),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.iconMuted : Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: selected
-                        ? AppColors.iconMuted
-                        : const Color(0xFFD2C4BE).withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Text(
-                  chip,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : AppColors.textSecondary,
-                  ),
+          children: _planElements.map((chip) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6B5B53),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                chip,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: Colors.white,
                 ),
               ),
             );
@@ -914,52 +930,168 @@ class _SkinQuestionnaireScreenState extends State<SkinQuestionnaireScreen> {
 
 // ─── Shared chrome ───────────────────────────────────────────────────────────
 
-class _GoalAppBar extends StatelessWidget {
-  const _GoalAppBar({
-    required this.title,
-    required this.onBack,
-    required this.onSkip,
+class _GoalFlowBackdrop extends StatelessWidget {
+  const _GoalFlowBackdrop({
+    required this.child,
+    this.flat = false,
   });
 
-  final String title;
-  final VoidCallback onBack;
-  final VoidCallback onSkip;
+  final Widget child;
+  final bool flat;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-      child: SizedBox(
-        height: 44,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(Icons.arrow_back_ios_new, size: 16),
-              color: AppColors.iconMuted,
-            ),
-            Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.4,
-                  color: AppColors.textPrimary,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Color(0xFFFCF9F8)),
+        if (!flat) ...[
+          Positioned(
+            right: -150,
+            top: -150,
+            child: IgnorePointer(
+              child: Container(
+                width: 460,
+                height: 460,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFF7E1D7).withValues(alpha: 0.52),
+                      const Color(0xFFF7E1D7).withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
               ),
             ),
-            TextButton(
-              onPressed: onSkip,
-              child: Text(
-                'Skip',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                  color: AppColors.iconMuted,
+          ),
+          Positioned(
+            right: -40,
+            top: 80,
+            child: IgnorePointer(
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFFFC4AF).withValues(alpha: 0.22),
+                      const Color(0xFFFFC4AF).withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -120,
+            bottom: -100,
+            child: IgnorePointer(
+              child: Container(
+                width: 340,
+                height: 340,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFD7C2B9).withValues(alpha: 0.18),
+                      const Color(0xFFD7C2B9).withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        child,
+      ],
+    );
+  }
+}
+
+class _GoalStepHeader extends StatelessWidget {
+  const _GoalStepHeader({
+    required this.step,
+    required this.totalSteps,
+    required this.onSkip,
+    this.onBack,
+  });
+
+  final int step;
+  final int totalSteps;
+  final VoidCallback onSkip;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (step + 1) / totalSteps;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+      child: SizedBox(
+        height: 56,
+        child: Stack(
+          children: [
+            if (onBack != null)
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 16),
+                  color: AppColors.iconMuted,
+                  padding: const EdgeInsets.all(12),
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 36),
+                ),
+              ),
+            Align(
+              alignment: Alignment.topRight,
+              child: TextButton(
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(
+                  'Skip',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: AppColors.iconMuted,
+                  ),
+                ),
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 108,
+                    height: 3,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 3,
+                        backgroundColor: const Color(0xFFD2C4BE)
+                            .withValues(alpha: 0.35),
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'STEP ${step + 1} OF $totalSteps',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -970,10 +1102,15 @@ class _GoalAppBar extends StatelessWidget {
 }
 
 class _ContinueFooter extends StatelessWidget {
-  const _ContinueFooter({required this.label, required this.onPressed});
+  const _ContinueFooter({
+    required this.label,
+    required this.onPressed,
+    this.icon = Icons.arrow_forward_ios,
+  });
 
   final String label;
   final VoidCallback onPressed;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -981,7 +1118,7 @@ class _ContinueFooter extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: Colors.white.withValues(alpha: 0.72),
         border: Border(
           top: BorderSide(
             color: const Color(0xFFD2C4BE).withValues(alpha: 0.35),
@@ -991,7 +1128,7 @@ class _ContinueFooter extends StatelessWidget {
       child: GlowPrimaryButton(
         label: label,
         height: 52,
-        icon: Icons.arrow_forward_ios,
+        icon: icon,
         onPressed: onPressed,
       ),
     );
@@ -1016,57 +1153,48 @@ class _ConcernCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: selected ? Colors.white : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
                 ? AppColors.primary
-                : const Color(0xFFD2C4BE).withValues(alpha: 0.3),
+                : const Color(0xFFD2C4BE),
             width: selected ? 1.5 : 1,
           ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFFC5AF).withValues(alpha: 0.7),
+                color: Color(0xFFFFC5AF),
               ),
-              child: Icon(item.icon, size: 22, color: AppColors.primary),
+              child: Icon(item.icon, size: 20, color: const Color(0xFF7A4F3E)),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item.subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 16),
+            Text(
+              item.title,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.7,
+                color: AppColors.textPrimary,
               ),
             ),
-            Icon(
-              selected ? Icons.check_circle : Icons.circle_outlined,
-              size: 20,
-              color: selected ? AppColors.primary : AppColors.textTertiary,
+            const SizedBox(height: 4),
+            Text(
+              item.subtitle,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                height: 16 / 12,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -1092,14 +1220,14 @@ class _GoalCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(40),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.85),
+          color: Colors.white.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
                 ? AppColors.primary
-                : AppColors.primary.withValues(alpha: 0.2),
+                : AppColors.primary.withValues(alpha: 0.1),
             width: selected ? 1.5 : 1,
           ),
           boxShadow: [
@@ -1110,33 +1238,38 @@ class _GoalCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(item.icon, color: AppColors.primary, size: 26),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      height: 1.45,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF7E1D7),
+              ),
+              child: Icon(
+                item.icon,
+                size: 22,
+                color: const Color(0xFF73635B),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              item.title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.subtitle,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                height: 24 / 16,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -1163,65 +1296,218 @@ class _SkinTypeCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        constraints: const BoxConstraints(minHeight: 220),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : AppColors.surfaceSoft,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected
-                ? AppColors.primary
-                : const Color(0xFFD2C4BE).withValues(alpha: 0.35),
-            width: selected ? 1.5 : 1,
+            color: selected ? AppColors.primary : const Color(0xFFD2C4BE),
+            width: 1,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    blurRadius: 18,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    blurRadius: 30,
                     offset: const Offset(0, 8),
                   ),
                 ]
               : null,
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: AppColors.surfacePeach,
-              ),
-              child: Icon(item.icon, color: AppColors.primary, size: 26),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFFFFC4AF).withValues(alpha: 0.3),
+                  ),
+                  child: Icon(item.icon, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  item.title,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                    height: 32 / 24,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      height: 1.45,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            Text(
+              item.subtitle,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                height: 24 / 16,
+                color: const Color(0xFF4E4540),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ExpertGuidanceCard extends StatelessWidget {
+  const _ExpertGuidanceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 320,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFCF9F8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  const Color(0xFFFCF9F8),
+                  const Color(0xFFF8EEE8),
+                  const Color(0xFFF0DFD4),
+                  const Color(0xFFE5C9B5),
+                ],
+                stops: const [0, 0.32, 0.68, 1],
+              ),
+            ),
+          ),
+          Positioned(
+            right: -90,
+            top: -70,
+            child: IgnorePointer(
+              child: Container(
+                width: 340,
+                height: 340,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFD4A98A).withValues(alpha: 0.75),
+                      const Color(0xFFE8CDB8).withValues(alpha: 0.35),
+                      const Color(0xFFFCF9F8).withValues(alpha: 0),
+                    ],
+                    stops: const [0, 0.55, 1],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -10,
+            bottom: -110,
+            child: IgnorePointer(
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFC99573).withValues(alpha: 0.65),
+                      const Color(0xFFF5E2D9).withValues(alpha: 0.18),
+                      const Color(0xFFFCF9F8).withValues(alpha: 0),
+                    ],
+                    stops: const [0, 0.5, 1],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 48,
+            top: 72,
+            child: IgnorePointer(
+              child: Container(
+                width: 210,
+                height: 210,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFB8896A).withValues(alpha: 0.4),
+                      const Color(0xFFE8CDB8).withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  const Color(0xFFFCF9F8),
+                  const Color(0xFFFCF9F8).withValues(alpha: 0.4),
+                  const Color(0xFFFCF9F8).withValues(alpha: 0),
+                ],
+                stops: const [0, 0.5, 1],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'EXPERT GUIDANCE',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    height: 24 / 16,
+                    letterSpacing: 3.2,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Not sure about your type?',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                    height: 32 / 24,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Perform the 'Wash and Wait' test: Cleanse your face with a gentle pH-balanced cleanser, wait 30 minutes without applying any products, and observe how your skin feels.",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    height: 24 / 16,
+                    color: const Color(0xFF4E4540),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1241,28 +1527,26 @@ class _AllergenCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF6F3F2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: enabled
-              ? AppColors.primary.withValues(alpha: 0.45)
-              : const Color(0xFFD2C4BE).withValues(alpha: 0.35),
-        ),
+        border: enabled
+            ? Border.all(color: AppColors.primary)
+            : Border.all(color: Colors.transparent),
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFEAE7E7),
             ),
-            child: Icon(item.icon, size: 22, color: AppColors.primary),
+            child: Icon(item.icon, size: 20, color: AppColors.primary),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1270,8 +1554,9 @@ class _AllergenCard extends StatelessWidget {
                 Text(
                   item.title,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
+                    height: 28 / 18,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -1280,8 +1565,8 @@ class _AllergenCard extends StatelessWidget {
                   item.subtitle,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
-                    height: 1.35,
-                    color: AppColors.textSecondary,
+                    height: 16 / 12,
+                    color: const Color(0xFF4E4540),
                   ),
                 ),
               ],
@@ -1289,8 +1574,12 @@ class _AllergenCard extends StatelessWidget {
           ),
           Switch.adaptive(
             value: enabled,
-            activeThumbColor: AppColors.primary,
-            activeTrackColor: AppColors.primary.withValues(alpha: 0.35),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppColors.primary,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: const Color(0xFFD2C4BE),
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
             onChanged: onChanged,
           ),
         ],
@@ -1299,16 +1588,14 @@ class _AllergenCard extends StatelessWidget {
   }
 }
 
-class _ComplexityCard extends StatelessWidget {
-  const _ComplexityCard({
-    required this.title,
-    required this.subtitle,
+class _FrequencyCard extends StatelessWidget {
+  const _FrequencyCard({
+    required this.option,
     required this.selected,
     required this.onTap,
   });
 
-  final String title;
-  final String subtitle;
+  final _TimeOption option;
   final bool selected;
   final VoidCallback onTap;
 
@@ -1318,35 +1605,150 @@ class _ComplexityCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : AppColors.surfaceSoft,
+          color: selected ? Colors.white : const Color(0xFFF6F3F2),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected
-                ? AppColors.primary
-                : const Color(0xFFD2C4BE).withValues(alpha: 0.35),
-            width: selected ? 2 : 1,
+            color: selected ? AppColors.primary : const Color(0xFFD2C4BE),
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    blurRadius: 30,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              option.icon,
+              size: 32,
+              color: selected ? AppColors.primary : const Color(0xFF6B5B53),
+            ),
+            const SizedBox(height: 8),
             Text(
-              title,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 22,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+              option.label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 20 / 14,
+                letterSpacing: 0.7,
+                color: selected ? AppColors.primary : const Color(0xFF4E4540),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                height: 1.4,
-                color: AppColors.textSecondary,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComplexityCard extends StatelessWidget {
+  const _ComplexityCard({
+    required this.title,
+    required this.subtitle,
+    required this.stepCount,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final int stepCount;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : const Color(0xFFF6F3F2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFD2C4BE),
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    blurRadius: 30,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: stepCount == 7 ? 43 : 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: stepCount == 7 && selected
+                    ? const Color(0xFFFFC4AF)
+                    : const Color(0xFFF7E1D7),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$stepCount',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1,
+                  color: selected
+                      ? AppColors.primary
+                      : const Color(0xFF6B5B53),
+                ),
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 20 / 14,
+                      letterSpacing: 0.7,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      height: 16 / 12,
+                      color: const Color(0xFF4E4540),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primary
+                      : const Color(0xFF807570),
+                  width: selected ? 4 : 1,
+                ),
               ),
             ),
           ],

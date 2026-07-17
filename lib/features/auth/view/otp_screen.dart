@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:glowbebe/core/constants/app_assets.dart';
 import 'package:glowbebe/core/constants/app_colors.dart';
 import 'package:glowbebe/core/widgets/glow_ui.dart';
+import 'package:glowbebe/features/auth/auth_navigation.dart';
 import 'package:glowbebe/features/auth/widgets/auth_widgets.dart';
 import 'package:glowbebe/routes/route_names.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -52,15 +53,23 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   /// Register → OTP → Goals; Forgot password → Main/Login.
-  void _onVerified() {
+  Future<void> _onVerified() async {
     final args = ModalRoute.of(context)?.settings.arguments;
     final flow = args is Map ? args['flow'] as String? : null;
 
     if (flow == 'register') {
+      final completed = await AuthNavigation.isGoalsOnboardingComplete();
+      if (!mounted) return;
+
+      if (completed) {
+        Navigator.pushReplacementNamed(context, RouteNames.mainShell);
+        return;
+      }
+
       Navigator.pushReplacementNamed(
         context,
         RouteNames.skinQuestionnaire,
-        arguments: const {'fromRegister': true},
+        arguments: const {'fromAuth': true},
       );
       return;
     }

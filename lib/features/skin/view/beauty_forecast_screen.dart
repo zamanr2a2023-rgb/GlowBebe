@@ -1,144 +1,268 @@
 import 'package:flutter/material.dart';
 import 'package:glowbebe/core/constants/app_colors.dart';
 import 'package:glowbebe/core/widgets/glow_ui.dart';
+import 'package:glowbebe/features/try_on/widgets/try_on_widgets.dart';
+import 'package:glowbebe/routes/route_names.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class BeautyForecastScreen extends StatelessWidget {
   const BeautyForecastScreen({super.key});
 
+  static const _stats = <(String, String)>[
+    ('30 Days', '+12%'),
+    ('60 Days', '+22%'),
+    ('90 Days', '+35%'),
+  ];
+
+  void _onNavTap(BuildContext context, int index) {
+    Navigator.pushReplacementNamed(
+      context,
+      RouteNames.mainShell,
+      arguments: index,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const GlowAppBar(title: 'Beauty Forecast'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-        children: [
-          GlowSerifTitle('Future Gains', size: 28),
-          const SizedBox(height: 8),
-          Text(
-            'Projected skin improvement if you stay consistent with your regimen.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              height: 1.5,
-              color: AppColors.textSecondary,
+      appBar: AppBar(
+        toolbarHeight: 64,
+        leading: IconButton(
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(
+            Icons.arrow_back,
+            size: 20,
+            color: AppColors.iconMuted,
+          ),
+        ),
+        title: Text(
+          'BEAUTY FORECAST',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 3.0,
+            color: AppColors.primary,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () =>
+                Navigator.pushNamed(context, RouteNames.notifications),
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: AppColors.iconMuted,
             ),
           ),
-          const SizedBox(height: 24),
+        ],
+        backgroundColor: AppColors.background.withValues(alpha: 0.92),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+        children: [
           GlowSoftCard(
+            color: const Color(0xFFFAF3EE),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Glow Score Trajectory',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '85',
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
+                    Expanded(
+                      child: Text(
+                        'SKIN HEALTH\nPREDICTION',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.4,
+                          height: 1.5,
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '→ 97 in 90 days',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF4A7C59),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '90-DAY HORIZON',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 6),
+                Text(
+                  'Future Gains',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 SizedBox(
-                  height: 180,
+                  height: 170,
                   width: double.infinity,
                   child: CustomPaint(
-                    painter: _ForecastChartPainter(),
+                    painter: _ForecastCurvePainter(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: ['Now', '30d', '60d', '90d']
-                      .map(
-                        (e) => Text(
-                          e,
+                  children: [
+                    for (final (label, bold) in const [
+                      ('Today', false),
+                      ('30d', false),
+                      ('60d', false),
+                      ('90d', true),
+                    ])
+                      Text(
+                        label,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight:
+                              bold ? FontWeight.w700 : FontWeight.w400,
+                          color: bold
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              for (var i = 0; i < _stats.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EDE8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _stats[i].$1,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
+                            fontSize: 12,
                             color: AppColors.textTertiary,
                           ),
                         ),
-                      )
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          GlowSoftCard(
-            color: AppColors.surfacePeach,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        size: 18, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      'AI Forecast Insight',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppColors.primary,
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _stats[i].$2,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Based on your current adherence and skin response, we expect '
-                  'noticeable pore refinement by day 30 and a brighter, more '
-                  'even tone by day 90. Consistency with SPF and night retinoid '
-                  'is the strongest predictor of your projected gains.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    height: 1.55,
-                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
+            ],
+          ),
+          const SizedBox(height: 28),
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: AppColors.textPrimary,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'AI Forecast Insight',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            decoration: BoxDecoration(
+              color: AppColors.surfacePeach.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '"By maintaining your current Vitamin C protocol, we project '
+              'a 35% reduction in localized redness over the next 3 months. '
+              'Your barrier resilience is trending 15% higher than the '
+              'seasonal average for your skin profile."',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                height: 1.6,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           const SizedBox(height: 20),
-          const GlowMetricBar(label: 'Hydration gain', value: 78, trailing: '+12'),
-          const SizedBox(height: 16),
-          const GlowMetricBar(label: 'Texture gain', value: 65, trailing: '+9'),
-          const SizedBox(height: 16),
-          const GlowMetricBar(label: 'Even tone gain', value: 70, trailing: '+11'),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Container(
+                    width: 64,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
+      ),
+      bottomNavigationBar: GlowBottomNav(
+        currentIndex: 0,
+        onTap: (index) => _onNavTap(context, index),
       ),
     );
   }
 }
 
-class _ForecastChartPainter extends CustomPainter {
+class _ForecastCurvePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = AppColors.borderSoft
+      ..color = AppColors.primary.withValues(alpha: 0.1)
       ..strokeWidth = 1;
 
     for (var i = 0; i <= 3; i++) {
@@ -146,51 +270,37 @@ class _ForecastChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
 
-    final points = [0.55, 0.48, 0.38, 0.28];
-    final path = Path();
-    final fillPath = Path();
     final line = Paint()
       ..color = AppColors.primary
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final fill = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          AppColors.primary.withValues(alpha: 0.2),
-          AppColors.primary.withValues(alpha: 0.0),
-        ],
-      ).createShader(Offset.zero & size);
+    // Upward accelerating curve: starts low-left, ends high-right.
+    final start = Offset(0, size.height * 0.88);
+    final end = Offset(size.width, size.height * 0.06);
+    final control = Offset(size.width * 0.62, size.height * 0.95);
 
-    for (var i = 0; i < points.length; i++) {
-      final x = size.width * (i / (points.length - 1));
-      final y = size.height * points[i];
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, size.height);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
-      }
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
+    canvas.drawPath(path, line);
+
+    // Dots at 30d / 60d / 90d along the curve.
+    for (final t in const [0.33, 0.66, 1.0]) {
+      final oneMinusT = 1 - t;
+      final x = oneMinusT * oneMinusT * start.dx +
+          2 * oneMinusT * t * control.dx +
+          t * t * end.dx;
+      final y = oneMinusT * oneMinusT * start.dy +
+          2 * oneMinusT * t * control.dy +
+          t * t * end.dy;
       canvas.drawCircle(
         Offset(x, y),
-        5,
+        t == 1.0 ? 6 : 4.5,
         Paint()..color = AppColors.primary,
       );
-      canvas.drawCircle(
-        Offset(x, y),
-        2.5,
-        Paint()..color = Colors.white,
-      );
     }
-    fillPath.lineTo(size.width, size.height);
-    fillPath.close();
-    canvas.drawPath(fillPath, fill);
-    canvas.drawPath(path, line);
   }
 
   @override

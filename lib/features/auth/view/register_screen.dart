@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glowbebe/core/constants/app_colors.dart';
 import 'package:glowbebe/core/widgets/glow_ui.dart';
+import 'package:glowbebe/features/auth/auth_navigation.dart';
 import 'package:glowbebe/features/auth/widgets/auth_widgets.dart';
 import 'package:glowbebe/routes/route_names.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _goMain() {
-    Navigator.pushReplacementNamed(context, RouteNames.mainShell);
+    AuthNavigation.continueAfterSignIn(context);
   }
 
   @override

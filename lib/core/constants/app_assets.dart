@@ -7,6 +7,7 @@ class AppAssets {
   static const String aiSkin = 'assets/images/ai_skin.jpg';
   static const String tryOnHero = 'assets/images/try_on.png';
   static const String lipstickThumb = 'assets/images/Image.png';
+  static const String scienceOfSmooth = 'assets/images/maye.png';
   static const String wandIcon = 'assets/images/Container.png';
   static const String tryOnPhotosStrip = 'assets/images/photos.png';
   static const String smartRecommendations = 'assets/images/smart.png';

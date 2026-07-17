@@ -26,6 +26,7 @@ class TodaysRoutineScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: GlowAppBar(
         title: "Today's Routine",
+        titleColor: AppColors.textWarm,
         actions: [
           IconButton(
             onPressed: () =>
@@ -46,7 +47,7 @@ class TodaysRoutineScreen extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.6,
-              color: AppColors.primary,
+              color: AppColors.iconMuted,
             ),
           ),
           const SizedBox(height: 10),
@@ -56,7 +57,7 @@ class TodaysRoutineScreen extends StatelessWidget {
               fontSize: 28,
               fontWeight: FontWeight.w600,
               height: 1.25,
-              color: AppColors.textPrimary,
+              color: AppColors.textWarm,
             ),
           ),
           const SizedBox(height: 28),
@@ -111,10 +112,10 @@ class _ProtocolSection extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textWarm,
                 ),
               ),
             ),
@@ -122,7 +123,8 @@ class _ProtocolSection extends StatelessWidget {
               time,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
-                color: AppColors.textTertiary,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
               ),
             ),
           ],
@@ -171,7 +173,7 @@ class _ProtocolSection extends StatelessWidget {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.4,
-                                color: AppColors.textTertiary,
+                                color: AppColors.primary,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -180,7 +182,7 @@ class _ProtocolSection extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
